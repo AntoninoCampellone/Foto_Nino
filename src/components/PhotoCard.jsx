@@ -40,9 +40,11 @@ function PhotoCard({
           Scarica
         </button>
 
-        <button className="delete-button" onClick={() => onRemove(photo.id)}>
-          Rimuovi
-        </button>
+        {onRemove && (
+          <button className="delete-button" onClick={() => onRemove(photo.id)}>
+            Rimuovi
+          </button>
+        )}
       </div>
     </div>
   )
