@@ -49,7 +49,10 @@ function AdminLogin({ onSuccess }) {
       <div className="background-grid"></div>
 
       <div className="container">
-        <div className="sidebar-card glass-card" style={{ maxWidth: '520px', margin: '80px auto 0' }}>
+        <div
+          className="sidebar-card glass-card"
+          style={{ maxWidth: '520px', margin: '80px auto 0' }}
+        >
           <div className="section-title-row">
             <div>
               <h2>Accesso area admin</h2>
@@ -104,6 +107,7 @@ function AdminPage() {
   const [isUploading, setIsUploading] = useState(false)
   const [isCreatingAlbum, setIsCreatingAlbum] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isDeletingAlbum, setIsDeletingAlbum] = useState(false)
 
   const fileInputRef = useRef(null)
   const navigate = useNavigate()
@@ -251,6 +255,18 @@ function AdminPage() {
     if (error) throw error
   }
 
+  async function deletePhotosByAlbumId(albumId) {
+    const { error } = await supabase.from('Photos').delete().eq('album_id', albumId)
+
+    if (error) throw error
+  }
+
+  async function deleteAlbumFromDatabase(albumId) {
+    const { error } = await supabase.from('Albums').delete().eq('id', albumId)
+
+    if (error) throw error
+  }
+
   async function deletePhotoFromCloudinary(publicId) {
     const response = await fetch('/api/delete-cloudinary', {
       method: 'POST',
@@ -282,7 +298,6 @@ function AdminPage() {
     if (!confirmed) return
 
     const photo = photos.find((item) => item.id === photoId)
-
     if (!photo) return
 
     setIsDeleting(true)
@@ -330,6 +345,46 @@ function AdminPage() {
       alert(`Rimozione fallita: ${error?.message || 'errore sconosciuto'}`)
     } finally {
       setIsDeleting(false)
+    }
+  }
+
+  async function removeAlbum() {
+    if (!selectedAlbum) {
+      alert('Seleziona prima un album.')
+      return
+    }
+
+    const confirmed = window.confirm(
+      `Vuoi davvero eliminare l'album "${selectedAlbum.name}" e tutte le sue foto?`
+    )
+
+    if (!confirmed) return
+
+    setIsDeletingAlbum(true)
+
+    try {
+      for (const photo of photos) {
+        await deletePhotoFromCloudinary(photo.publicId)
+      }
+
+      await deletePhotosByAlbumId(selectedAlbum.id)
+      await deleteAlbumFromDatabase(selectedAlbum.id)
+
+      const remainingAlbums = albums.filter((album) => album.id !== selectedAlbum.id)
+      setAlbums(remainingAlbums)
+      setPhotos([])
+      setSelectedIds([])
+
+      if (remainingAlbums.length > 0) {
+        setSelectedAlbumSlug(remainingAlbums[0].slug)
+      } else {
+        setSelectedAlbumSlug('')
+      }
+    } catch (error) {
+      console.error('ERRORE RIMOZIONE ALBUM:', error)
+      alert(`Eliminazione album fallita: ${error?.message || 'errore sconosciuto'}`)
+    } finally {
+      setIsDeletingAlbum(false)
     }
   }
 
@@ -531,13 +586,21 @@ function AdminPage() {
             <button
               className="primary-button"
               onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading || isDeleting || !selectedAlbum}
+              disabled={isUploading || isDeleting || isDeletingAlbum || !selectedAlbum}
             >
               {isUploading ? 'Caricamento...' : 'Aggiungi fotografie'}
             </button>
 
             <button className="secondary-button" onClick={copyLink}>
               {linkCopied ? 'Link copiato' : 'Copia collegamento'}
+            </button>
+
+            <button
+              className="secondary-button danger-soft"
+              onClick={removeAlbum}
+              disabled={isDeletingAlbum || !selectedAlbum}
+            >
+              {isDeletingAlbum ? 'Eliminazione album...' : 'Elimina album'}
             </button>
 
             <button className="secondary-button" onClick={handleLogout}>
