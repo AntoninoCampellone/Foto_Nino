@@ -9,7 +9,7 @@ import { supabase } from './services/supabase'
 const CLOUD_NAME = 'dcf9xe0rk'
 const UPLOAD_PRESET = 'photo_share'
 const CLOUDINARY_FOLDER = 'photo-share'
-const ADMIN_PASSWORD = 'Liberata'
+const ADMIN_PASSWORD = 'NinoFoto1412'
 const ADMIN_SESSION_KEY = 'foto_nino_admin_auth'
 
 function mapPhotoRows(photoRows) {
@@ -251,16 +251,40 @@ function AdminPage() {
     if (error) throw error
   }
 
+  async function deletePhotoFromCloudinary(publicId) {
+    const response = await fetch('/api/delete-cloudinary', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ publicId }),
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data?.error || 'Errore eliminazione Cloudinary')
+    }
+
+    return data
+  }
+
   async function removePhoto(photoId) {
     const confirmed = window.confirm('Vuoi davvero rimuovere questa foto?')
 
     if (!confirmed) return
 
+    const photo = photos.find((item) => item.id === photoId)
+
+    if (!photo) return
+
     setIsDeleting(true)
 
     try {
+      await deletePhotoFromCloudinary(photo.publicId)
       await deletePhotoFromDatabase(photoId)
-      setPhotos((prev) => prev.filter((photo) => photo.id !== photoId))
+
+      setPhotos((prev) => prev.filter((item) => item.id !== photoId))
       setSelectedIds((prev) => prev.filter((id) => id !== photoId))
     } catch (error) {
       console.error('ERRORE RIMOZIONE FOTO:', error)
@@ -282,6 +306,12 @@ function AdminPage() {
     setIsDeleting(true)
 
     try {
+      const selectedPhotos = photos.filter((photo) => selectedIds.includes(photo.id))
+
+      for (const photo of selectedPhotos) {
+        await deletePhotoFromCloudinary(photo.publicId)
+      }
+
       const { error } = await supabase.from('Photos').delete().in('id', selectedIds)
 
       if (error) throw error
