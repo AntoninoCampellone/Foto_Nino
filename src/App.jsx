@@ -260,7 +260,14 @@ function AdminPage() {
       body: JSON.stringify({ publicId }),
     })
 
-    const data = await response.json()
+    const rawText = await response.text()
+    let data = {}
+
+    try {
+      data = rawText ? JSON.parse(rawText) : {}
+    } catch {
+      throw new Error('La funzione server non ha restituito un JSON valido')
+    }
 
     if (!response.ok) {
       throw new Error(data?.error || 'Errore eliminazione Cloudinary')
